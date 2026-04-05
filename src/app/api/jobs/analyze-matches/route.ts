@@ -8,7 +8,10 @@ import { findPostMatchThread } from "@/lib/reddit-api";
 import { findHighlightVideo } from "@/lib/youtube-api";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
+
+// Vercel Hobby limit: 60s. Reserve 5s for final DB writes.
+const TIME_BUDGET_MS = 55_000;
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -83,6 +86,8 @@ export async function POST(request: Request) {
 
   console.log(`[analyze] Found ${matches.length} matches to analyze`);
 
+  const startTime = Date.now();
+
   type AnalyzedMatch = {
     matchId: string;
     excitementScore: number;
@@ -93,6 +98,12 @@ export async function POST(request: Request) {
   const analyzed: AnalyzedMatch[] = [];
 
   for (const match of matches) {
+    // Check time budget before starting a new match
+    if (Date.now() - startTime > TIME_BUDGET_MS) {
+      console.warn(`[analyze] Time budget exhausted after ${analyzed.length}/${matches.length} matches`);
+      break;
+    }
+
     try {
       // Extract halftime and duration from raw_payload (football-data.org response)
       const payload = match.raw_payload as Record<string, unknown> | null;
@@ -291,7 +302,7 @@ export async function POST(request: Request) {
     digest_run_id: digestRun.id,
     match_id: m.matchId,
     rank_order: idx + 1,
-    featured_in_email: idx < 5,
+    featured_in_email: idx < 6,
   }));
 
   if (digestMatchRows.length > 0) {

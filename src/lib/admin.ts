@@ -3,14 +3,14 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 export async function isAdmin(
   _supabase: SupabaseClient,
-  userId: string
+  email: string
 ): Promise<boolean> {
   // Use service client to bypass RLS (admin_users has no SELECT policy)
   const sc = await createServiceClient();
   const { data } = await sc
     .from("admin_users")
     .select("id")
-    .eq("user_id", userId)
+    .eq("email", email)
     .single();
 
   return !!data;

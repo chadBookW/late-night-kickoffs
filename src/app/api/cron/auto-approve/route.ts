@@ -45,7 +45,9 @@ export async function GET(request: Request) {
 
   const allPassed = analyses?.every(
     (a: { summary_status: string }) =>
-      a.summary_status === "approved" || a.summary_status === "auto_approved"
+      a.summary_status === "generated" ||
+      a.summary_status === "template_fallback" ||
+      a.summary_status === "admin_edited"
   );
 
   if (!allPassed) {
