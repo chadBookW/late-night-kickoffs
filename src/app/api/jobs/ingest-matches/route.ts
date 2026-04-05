@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
-  getFinishedMatches,
+  getFinishedMatchesRange,
   mapStatus,
   formatRound,
   type FDMatch,
 } from "@/lib/sports-api";
-import { yesterdayIST, toISTDate, formatMatchweekFromRound } from "@/lib/ist-utils";
+import { yesterdayIST, toISTDate, formatMatchweekFromRound, istDateToUtcRange } from "@/lib/ist-utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -45,6 +45,11 @@ export async function POST(request: Request) {
 
   let totalIngested = 0;
 
+  // Convert IST date to UTC date range for the API query.
+  // IST day spans two UTC days (e.g., IST Apr 5 = UTC Apr 4 18:30 → Apr 5 18:29).
+  const { utcFrom, utcTo } = istDateToUtcRange(dateStr);
+  console.log(`[ingest] UTC range for IST ${dateStr}: ${utcFrom} → ${utcTo}`);
+
   for (const league of leagues) {
     // Use the league code (e.g. "PL") for football-data.org
     const competitionCode = league.code;
@@ -54,15 +59,17 @@ export async function POST(request: Request) {
 
     let matches: FDMatch[];
     try {
-      matches = await getFinishedMatches(competitionCode, dateStr);
+      matches = await getFinishedMatchesRange(competitionCode, utcFrom, utcTo);
     } catch (err) {
       console.error(`[ingest] API error for ${competitionCode}:`, err);
       continue;
     }
 
-    console.log(`[ingest] Found ${matches.length} finished matches for ${competitionCode}`);
+    // Filter to only matches whose kickoff falls within our target IST date
+    const filtered = matches.filter((m) => toISTDate(m.utcDate) === dateStr);
+    console.log(`[ingest] Found ${matches.length} finished matches, ${filtered.length} on IST ${dateStr} for ${competitionCode}`);
 
-    for (const match of matches) {
+    for (const match of filtered) {
       try {
         await processMatch(supabase, match, league.id);
         totalIngested++;

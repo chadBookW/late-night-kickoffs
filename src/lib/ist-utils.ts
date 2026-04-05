@@ -34,6 +34,22 @@ export function toISTDate(utcDateStr: string): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Given an IST date string (YYYY-MM-DD), return the UTC dateFrom/dateTo
+ * that fully covers that IST day.
+ * IST 2026-04-05 00:00 = UTC 2026-04-04 18:30
+ * IST 2026-04-05 23:59 = UTC 2026-04-05 18:29
+ * So we need to query football-data.org for dateFrom=Apr 4, dateTo=Apr 5.
+ */
+export function istDateToUtcRange(istDateStr: string): { utcFrom: string; utcTo: string } {
+  const startIST = new Date(`${istDateStr}T00:00:00+05:30`);
+  const endIST = new Date(`${istDateStr}T23:59:59+05:30`);
+  return {
+    utcFrom: startIST.toISOString().split("T")[0],
+    utcTo: endIST.toISOString().split("T")[0],
+  };
+}
+
 export function formatMatchweekFromRound(round: string): number | null {
   const match = round.match(/(\d+)/);
   return match ? parseInt(match[1], 10) : null;
