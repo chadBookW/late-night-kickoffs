@@ -97,10 +97,22 @@ const MOCK_MATCHES = [
 
 export default function LandingPage() {
   const [email, setEmail] = useState("");
+  const [selectedLeagues, setSelectedLeagues] = useState<string[]>(["PL", "CL"]);
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const LEAGUE_OPTIONS = [
+    { code: "PL", label: "Premier League", emoji: "🏴\u200D☠️" },
+    { code: "CL", label: "Champions League", emoji: "🏆" },
+  ];
+
+  const toggleLeague = (code: string) => {
+    setSelectedLeagues((prev) =>
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code]
+    );
+  };
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +125,7 @@ export default function LandingPage() {
       const res = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, leagues: ["PL"] }),
+        body: JSON.stringify({ email, leagues: selectedLeagues }),
       });
 
       if (!res.ok) {
@@ -233,6 +245,23 @@ export default function LandingPage() {
                 id="subscribe"
                 className="mx-auto mt-10 max-w-md space-y-3 scroll-mt-32"
               >
+                <div className="flex flex-wrap justify-center gap-2 mb-1">
+                  {LEAGUE_OPTIONS.map((league) => (
+                    <button
+                      key={league.code}
+                      type="button"
+                      onClick={() => toggleLeague(league.code)}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                        selectedLeagues.includes(league.code)
+                          ? "bg-emerald-600 text-white ring-2 ring-emerald-400/50"
+                          : "bg-white/10 text-zinc-400 ring-1 ring-white/10 hover:bg-white/15 hover:text-zinc-200"
+                      }`}
+                    >
+                      {league.emoji} {league.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     type="email"
@@ -244,7 +273,7 @@ export default function LandingPage() {
                   />
                   <Button
                     type="submit"
-                    disabled={status === "loading"}
+                    disabled={status === "loading" || selectedLeagues.length === 0}
                     className="h-12 rounded-xl bg-emerald-600 px-8 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-500/20 disabled:opacity-50"
                   >
                     {status === "loading" ? (
