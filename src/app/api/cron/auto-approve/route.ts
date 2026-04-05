@@ -29,19 +29,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, action: "already_approved", date: dateStr });
   }
 
+  // Get digest matches
+  const { data: digestMatches } = await supabase
+    .from("digest_matches")
+    .select("match_id")
+    .eq("digest_run_id", digestRun.id);
+
+  const matchIds = digestMatches?.map((dm: { match_id: string }) => dm.match_id) || [];
+
+  // Skip if no matches — no point sending an empty digest
+  if (matchIds.length === 0) {
+    console.log(`[auto-approve] No matches in digest for ${dateStr}, skipping`);
+    return NextResponse.json({ success: true, action: "no_matches", date: dateStr });
+  }
+
   // Check all analyses passed spoiler check
   const { data: analyses } = await supabase
     .from("match_analysis")
     .select("match_id, summary_status")
-    .in(
-      "match_id",
-      (
-        await supabase
-          .from("digest_matches")
-          .select("match_id")
-          .eq("digest_run_id", digestRun.id)
-      ).data?.map((dm: { match_id: string }) => dm.match_id) || []
-    );
+    .in("match_id", matchIds);
 
   const allPassed = analyses?.every(
     (a: { summary_status: string }) =>
